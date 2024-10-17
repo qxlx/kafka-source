@@ -132,6 +132,7 @@ public abstract class AbstractCoordinator implements Closeable {
     protected final Time time;
     protected final ConsumerNetworkClient client;
 
+    // 主协调器
     private Node coordinator = null;
     private String rejoinReason = "";
     private boolean rejoinNeeded = true;
@@ -380,7 +381,7 @@ public abstract class AbstractCoordinator implements Closeable {
         if (!ensureCoordinatorReady(timer)) {
             return false;
         }
-
+        // 心跳线程
         startHeartbeatThreadIfNeeded();
         return joinGroupIfNeeded(timer);
     }
@@ -447,6 +448,7 @@ public abstract class AbstractCoordinator implements Closeable {
                 }
             }
 
+            // 初始化假如群组
             final RequestFuture<ByteBuffer> future = initiateJoinGroup();
             client.poll(future, timer);
             if (!future.isDone()) {
@@ -529,6 +531,7 @@ public abstract class AbstractCoordinator implements Closeable {
             if (lastRebalanceStartMs == -1L)
                 lastRebalanceStartMs = time.milliseconds();
             joinFuture = sendJoinGroupRequest();
+            // 添加监听器
             joinFuture.addListener(new RequestFutureListener<ByteBuffer>() {
                 @Override
                 public void onSuccess(ByteBuffer value) {
@@ -626,6 +629,8 @@ public abstract class AbstractCoordinator implements Closeable {
 
                             log.info("Successfully joined group with generation {}", AbstractCoordinator.this.generation);
 
+
+                            // 所有的消息都发送joinGroup请求
                             if (joinResponse.isLeader()) {
                                 onLeaderElected(joinResponse).chain(future);
                             } else {
@@ -723,6 +728,7 @@ public abstract class AbstractCoordinator implements Closeable {
     private RequestFuture<ByteBuffer> onLeaderElected(JoinGroupResponse joinResponse) {
         try {
             // perform the leader synchronization and send back the assignment for the group
+            // 制定分区的方案
             Map<String, ByteBuffer> groupAssignment = onLeaderElected(
                 joinResponse.data().leader(),
                 joinResponse.data().protocolName(),

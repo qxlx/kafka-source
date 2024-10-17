@@ -46,12 +46,18 @@ public class BufferPool {
 
     static final String WAIT_TIME_SENSOR_NAME = "bufferpool-wait-time";
 
+    // 总内存大小
     private final long totalMemory;
+    // 每个内存块大小 batchSize
     private final int poolableSize;
+    // 申请、归还内存的方法的同步锁
     private final ReentrantLock lock;
+    // 空闲内存块
     private final Deque<ByteBuffer> free;
+    // 需要等待空闲内存块的事件
     private final Deque<Condition> waiters;
     /** Total available memory is the sum of nonPooledAvailableMemory and the number of byte buffers in free * poolableSize.  */
+    // 缓冲池还未分配的空闲内存,新申请的内存块就是从这里获取内存值
     private long nonPooledAvailableMemory;
     private final Metrics metrics;
     private final Time time;
@@ -125,31 +131,44 @@ public class BufferPool {
 
         try {
             // check if we have a free buffer of the right size pooled
+            // size大小等于batchSIze 并且free不为空 直接获取空闲内存块
+            // 这里为什么必须是batchSize 因为如果大于batchSize的话，就无法满足，
+            // 因为batchSize是固定值，不能超过batchSize
             if (size == poolableSize && !this.free.isEmpty())
                 return this.free.pollFirst();
 
             // now check if the request is immediately satisfiable with the
             // memory on hand or if we need to block
+            // 已经回收的内存总大小 = 当前回收内存的个数 * batchSize
             int freeListSize = freeSize() * this.poolableSize;
+            // 总空闲内存 大于等于 申请的内存
             if (this.nonPooledAvailableMemory + freeListSize >= size) {
                 // we have enough unallocated or pooled memory to immediately
                 // satisfy the request, but need to allocate the buffer
                 freeUp(size);
+                // 空闲内存 减去申请的内存大小
                 this.nonPooledAvailableMemory -= size;
+            // 内存足够的情况
             } else {
+                // 内存不够的情况
                 // we are out of memory and will have to block
                 int accumulated = 0;
+                // 创建本次等待的condition
                 Condition moreMemory = this.lock.newCondition();
                 try {
                     long remainingTimeToBlockNs = TimeUnit.MILLISECONDS.toNanos(maxTimeToBlockMs);
+                    // 添加到类型Deque的waiter中 -- 之后会唤醒
                     this.waiters.addLast(moreMemory);
                     // loop over and over until we have a buffer or have reserved
                     // enough memory to allocate one
+
+                    //只有当超过申请内存大小 退出
                     while (accumulated < size) {
                         long startWaitNs = time.nanoseconds();
                         long timeNs;
                         boolean waitingTimeElapsed;
                         try {
+                            // 阻塞等待
                             waitingTimeElapsed = !moreMemory.await(remainingTimeToBlockNs, TimeUnit.NANOSECONDS);
                         } finally {
                             long endWaitNs = time.nanoseconds();
@@ -249,6 +268,7 @@ public class BufferPool {
      * buffers (if needed)
      */
     private void freeUp(int size) {
+        // 这句说白了就是 不断从已回收的内存索取,直到超过申请内存的大小
         while (!this.free.isEmpty() && this.nonPooledAvailableMemory < size)
             this.nonPooledAvailableMemory += this.free.pollLast().capacity();
     }
@@ -264,10 +284,13 @@ public class BufferPool {
     public void deallocate(ByteBuffer buffer, int size) {
         lock.lock();
         try {
+            // 如果归还的内存块大小等于batchSize
             if (size == this.poolableSize && size == buffer.capacity()) {
+                // 清空添加到缓冲池中,归还给缓冲池
                 buffer.clear();
                 this.free.add(buffer);
             } else {
+                // 直接加在内存未分配的地址,等待JVM GC回收
                 this.nonPooledAvailableMemory += size;
             }
             Condition moreMem = this.waiters.peekFirst();

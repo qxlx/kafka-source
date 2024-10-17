@@ -335,6 +335,7 @@ public class ConsumerConfig extends AbstractConfig {
 
     private static final AtomicInteger CONSUMER_CLIENT_ID_SEQUENCE = new AtomicInteger(1);
 
+    // 初始值 设置
     static {
         CONFIG = new ConfigDef().define(BOOTSTRAP_SERVERS_CONFIG,
                                         Type.LIST,

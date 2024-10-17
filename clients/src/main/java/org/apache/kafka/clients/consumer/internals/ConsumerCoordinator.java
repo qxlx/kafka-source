@@ -521,6 +521,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             // Always update the heartbeat last poll time so that the heartbeat thread does not leave the
             // group proactively due to application inactivity even if (say) the coordinator cannot be found.
             pollHeartbeat(timer.currentTimeMs());
+            // 获取leader协调器
             if (coordinatorUnknownAndUnreadySync(timer)) {
                 return false;
             }
@@ -549,6 +550,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
                 }
 
                 // if not wait for join group, we would just use a timer of 0
+                // 激活群主 选举工作
                 if (!ensureActiveGroup(waitForJoinGroup ? timer : time.timer(0L))) {
                     // since we may use a different timer in the callee, we'd still need
                     // to update the original timer's current time after the call
@@ -1217,6 +1219,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
     }
 
     private RequestFuture<Void> autoCommitOffsetsAsync() {
+        // 所有消费者的偏移量
         Map<TopicPartition, OffsetAndMetadata> allConsumedOffsets = subscriptions.allConsumed();
         log.debug("Sending asynchronous auto-commit of offsets {}", allConsumedOffsets);
 
