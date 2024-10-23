@@ -76,7 +76,7 @@ public class RecordAccumulator {
     private final int deliveryTimeoutMs;
     private final long partitionAvailabilityTimeoutMs;  // latency threshold for marking partition temporary unavailable
     private final boolean enableAdaptivePartitioning;
-    private final BufferPool free;
+    private final BufferPool free; //初始化对象
     private final Time time;
     private final ApiVersions apiVersions;
     private final ConcurrentMap<String /*topic*/, TopicInfo> topicInfoMap = new CopyOnWriteMap<>();
@@ -134,7 +134,7 @@ public class RecordAccumulator {
         this.deliveryTimeoutMs = deliveryTimeoutMs;
         this.enableAdaptivePartitioning = partitionerConfig.enableAdaptivePartitioning;
         this.partitionAvailabilityTimeoutMs = partitionerConfig.partitionAvailabilityTimeoutMs;
-        this.free = bufferPool;
+        this.free = bufferPool; // 初始化对象
         this.incomplete = new IncompleteBatches();
         this.muted = new HashSet<>();
         this.time = time;
@@ -195,17 +195,17 @@ public class RecordAccumulator {
         metrics.addMetric(
             metrics.metricName("waiting-threads", metricGrpName,
                 "The number of user threads blocked waiting for buffer memory to enqueue their records"),
-            (config, now) -> free.queued());
+            (config, now) -> free.queued()); // 指标监控 忽略
 
         metrics.addMetric(
             metrics.metricName("buffer-total-bytes", metricGrpName,
                 "The maximum amount of buffer memory the client can use (whether or not it is currently used)."),
-            (config, now) -> free.totalMemory());
+            (config, now) -> free.totalMemory()); // 指标监控 忽略
 
         metrics.addMetric(
             metrics.metricName("buffer-available-bytes", metricGrpName,
                 "The total amount of buffer memory that is not being used (either unallocated or in the free list)."),
-            (config, now) -> free.availableMemory());
+            (config, now) -> free.availableMemory()); // 指标监控 忽略
     }
 
     private void setPartition(AppendCallbacks callbacks, int partition) {
@@ -335,7 +335,7 @@ public class RecordAccumulator {
                     int size = Math.max(this.batchSize, AbstractRecords.estimateSizeInBytesUpperBound(maxUsableMagic, compression, key, value, headers));
                     log.trace("Allocating a new {} byte message buffer for topic {} partition {} with remaining timeout {}ms", size, topic, partition, maxTimeToBlock);
                     // This call may block if we exhausted buffer space.
-                    buffer = free.allocate(size, maxTimeToBlock);
+                    buffer = free.allocate(size, maxTimeToBlock); // 内存分配
                     // Update the current time in case the buffer allocation blocked above.
                     // NOTE: getting time may be expensive, so calling it under a lock
                     // should be avoided.
@@ -358,7 +358,7 @@ public class RecordAccumulator {
                 }
             }
         } finally {
-            free.deallocate(buffer);
+            free.deallocate(buffer);  // 内存释放
             appendsInProgress.decrementAndGet();
         }
     }

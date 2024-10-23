@@ -43,19 +43,26 @@ public class Consumer extends ShutdownableThread {
                     final int numMessageToConsume,
                     final CountDownLatch latch) {
         super("KafkaConsumerExample", false);
+        // 配置初始化
         this.groupId = groupId;
         Properties props = new Properties();
+        //kafka连接地址
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaProperties.KAFKA_SERVER_URL + ":" + KafkaProperties.KAFKA_SERVER_PORT);
+        // group id config
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         instanceId.ifPresent(id -> props.put(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, id));
+        // 自动提交 true
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "30000");
+        // 序列化
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.IntegerDeserializer");
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
         if (readCommitted) {
+            // 读提交 事务型producer决定的
             props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         }
+        // 读取offset 方式
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         consumer = new KafkaConsumer<>(props);
@@ -81,6 +88,9 @@ public class Consumer extends ShutdownableThread {
             System.out.println(groupId + " finished reading " + numMessageToConsume + " messages");
             latch.countDown();
         }
+        consumer.commitAsync();
+        // 同步提交
+        consumer.commitSync();
     }
 
     @Override

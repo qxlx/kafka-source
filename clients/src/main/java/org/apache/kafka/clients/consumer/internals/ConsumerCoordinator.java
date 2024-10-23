@@ -509,6 +509,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
      * @return true iff the operation succeeded
      */
     public boolean poll(Timer timer, boolean waitForJoinGroup) {
+        // 获取最新元数据
         maybeUpdateSubscriptionMetadata();
 
         invokeCompletedOffsetCommitCallbacks();
@@ -520,12 +521,13 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             }
             // Always update the heartbeat last poll time so that the heartbeat thread does not leave the
             // group proactively due to application inactivity even if (say) the coordinator cannot be found.
+            // 3S 心跳
             pollHeartbeat(timer.currentTimeMs());
-            // 获取leader协调器
+            // 获取leader协调器 是否准备好了
             if (coordinatorUnknownAndUnreadySync(timer)) {
                 return false;
             }
-
+            // 判断是否需要加入消费者组
             if (rejoinNeededOrPending()) {
                 // due to a race condition between the initial metadata fetch and the initial rebalance,
                 // we need to ensure that the metadata is fresh before joining initially. This ensures
@@ -574,6 +576,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             client.pollNoWakeup();
         }
 
+        // 是否自动提交
         maybeAutoCommitOffsetsAsync(timer.currentTimeMs());
         return true;
     }
@@ -1094,6 +1097,8 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             // the same order that they were added. Note also that AbstractCoordinator prevents
             // multiple concurrent coordinator lookup requests.
             pendingAsyncCommits.incrementAndGet();
+            // 异步方式
+            // 是通过注册监听器 进行回调
             lookupCoordinator().addListener(new RequestFutureListener<Void>() {
                 @Override
                 public void onSuccess(Void value) {
@@ -1166,7 +1171,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             if (coordinatorUnknownAndUnreadySync(timer)) {
                 return false;
             }
-
+            // 发送提交请求
             RequestFuture<Void> future = sendOffsetCommitRequest(offsets);
             client.poll(future, timer);
 
@@ -1174,7 +1179,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
             // the corresponding callbacks are invoked prior to returning in order to preserve the order that
             // the offset commits were applied.
             invokeCompletedOffsetCommitCallbacks();
-
+            // 提交成功
             if (future.succeeded()) {
                 if (interceptors != null)
                     interceptors.onCommit(offsets);

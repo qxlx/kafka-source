@@ -164,8 +164,11 @@ public class SubscriptionState {
     }
 
     public synchronized boolean subscribe(Set<String> topics, ConsumerRebalanceListener listener) {
+        // 注册负载均衡监听器,例如消费者组 出现消费者下线的情况
         registerRebalanceListener(listener);
+        // 按照设置的主题开始订阅 自动分配分区
         setSubscriptionType(SubscriptionType.AUTO_TOPICS);
+        // 修改订阅主题信息
         return changeSubscription(topics);
     }
 
@@ -184,6 +187,7 @@ public class SubscriptionState {
     }
 
     private boolean changeSubscription(Set<String> topicsToSubscribe) {
+        // 如果订阅的主题和以前订阅的一致，就不需要修改订阅信息。如果不一致，就需要修改。
         if (subscription.equals(topicsToSubscribe))
             return false;
 
